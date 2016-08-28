@@ -27,7 +27,8 @@ config_parser.read("config.ini")
 font_directory = config_parser["Paths"]["font_dir"]
 from kivy.core.text import LabelBase
 LabelBase.register(name="Inconsolata",
-                   fn_regular=font_directory+"\\Inconsolata.ttf")
+                   fn_regular=font_directory+"\\Inconsolata.ttf",
+                   fn_bold=font_directory+"\\Inconsolata_bold.ttf")
 
 
 class OrangeStyle(Style):
@@ -114,15 +115,19 @@ class SimpleConsoleWidget(GridLayout):
     # the list in which the entered input is being stored
     entered_strings_list = ListProperty([])
 
+    # the font size
+    font_size = NumericProperty(13)
+
     print_buffer = ListProperty([])
 
-    def __init__(self, prompt=">>>", background=1, style="orange", **kwargs):
+    def __init__(self, prompt=">>>", background=1, style="orange", font_size=13, **kwargs):
         # initializing the super class FloatLayout
         super(SimpleConsoleWidget, self).__init__()
         self.cols = 1
         self.padding = 5
         self.spacing = 10
         self.orientation = 'vertical'
+        self.font_size = font_size
 
         self.prompt = prompt
         self.background_shade = background
@@ -139,12 +144,12 @@ class SimpleConsoleWidget(GridLayout):
             self.style = HtmlFormatter(style=GreenStyle).style
 
         # creating the output component of the condole
-        self.output_window = SimpleConsoleOutput()
+        self.output_window = SimpleConsoleOutput(font_size=self.font_size)
         self.output_window.size_hint = (1, 0.9)
         self.add_widget(self.output_window)
 
         # creating the input line of the console
-        self.input_line = SimpleConsoleInputLine(prompt=prompt)
+        self.input_line = SimpleConsoleInputLine(prompt=prompt, font_size=self.font_size)
         self.input_line.background_shade = self.background_shade - 0.1
         self.input_line.style = self.style
         self.input_line.bind(enter=self.on_text_validate)
@@ -265,6 +270,9 @@ class SimpleConsoleWidget(GridLayout):
         return return_input
         """
 
+    def get_font_size(self):
+        return self.font_size
+
     def print(self, string):
         self.print_buffer.append(string)
 
@@ -362,7 +370,7 @@ class SimpleConsoleInputLine(SimpleConsoleComponent):
     # The prompt for the console input
     prompt = StringProperty("")
 
-    def __init__(self, prompt=">>>", indent_length=4, **kwargs):
+    def __init__(self, prompt=">>>", indent_length=4, font_size=13, **kwargs):
         super(SimpleConsoleInputLine, self).__init__(multline=False)
         # setting the height initially to the Font's size and some extra pixels for the borders
         self.height = self.font_size + 14
@@ -379,6 +387,7 @@ class SimpleConsoleInputLine(SimpleConsoleComponent):
         # setting the prompt string
         self.prompt = prompt + " "
         self.text = self.prompt
+        self.font_size = font_size
 
     def get_input(self):
         """
@@ -639,7 +648,7 @@ class SimpleConsoleOutput(ScrollView):
     """
     labels = ListProperty([])
 
-    def __init__(self, **kwargs):
+    def __init__(self, font_size=13,**kwargs):
         super(SimpleConsoleOutput, self).__init__()
         # Creating the Gridlayout, that'll later contain all the labels, representing the output of the different
         # commands, because the ScrollView itself can only contain one child widget, which will be the layout
@@ -650,6 +659,7 @@ class SimpleConsoleOutput(ScrollView):
         # updated upon a change has appeared
         self.grid_layout.bind(minimum_height=self.grid_layout.setter("height"))
         self.add_widget(self.grid_layout)
+        self.font_size = font_size
 
     def _print(self, string):
         """
@@ -691,7 +701,7 @@ class SimpleConsoleOutput(ScrollView):
         # was downlaoaded at 'http://www.levien.com/type/myfonts/inconsolata.html'
         # For information on how to add custom fonts visit 'http://cheparev.com/kivy-connecting-font/'
         label.font_name = "Inconsolata"
-        label.font_size = 13
+        label.font_size = self.font_size
 
         self.grid_layout.add_widget(label)
         self.labels.append(label)

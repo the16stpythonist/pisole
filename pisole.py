@@ -14,7 +14,7 @@ import time
 import sys
 
 
-def help(console, command=""):
+def help(console, command="", max_column_width=30):
     """
     A function that will provide the user with information about the available commands. prints the list of all commands
     on default and the specific documentation of the command, when passed a name of func object
@@ -23,29 +23,75 @@ def help(console, command=""):
     :return:
     """
     # the functions list will contain tuples (function_name, function)
-    functions_list = inspect.getmembers(commands, inspect.isfunction)
+    functions_list = list(map(lambda x: list(x), inspect.getmembers(commands, inspect.isfunction)))
 
     # in case the string is empty the help function will print a list of all available commands
     if command == "":
         print_string_list = ["The following commands are available\n\n"]
+        # since the list of functions should be properly indented, meaning there should be clearly separated columns,
+        # the width of the first column must be calculated by using the length of the longest command as reference of
+        # how far it is possible to go
+        column_width = 0
         for function in functions_list:
-            print_string_list.extend([function[0], "\n"])
+            if len(function[0]) > column_width and len(function[0]) < max_column_width - 2:
+                column_width = len(function[0])
+        column_width += 2
+
+        # getting the doc string (only the explanation) for every command and replacing the second item of each
+        # function_list entry with this string. At this point every second item is the object of the function itself
+        # but that isnt needed in this context
+        for function in functions_list:
+            doc_string = str(inspect.getdoc(function[1]))
+            # slicing the docstring, so that it ends before the first parameter is described
+            doc_string = doc_string[:doc_string.find("\n:param")]
+            doc_string = doc_string.replace("\n", " ")
+            function[1] = doc_string
+
+        widget_width = int((console.get_width() / console.get_font_size()) * 1.8)
+        column_indent = " " * column_width
+        space_left = widget_width - column_width
+        print(space_left)
+        # adding the function names in bold and enough whitespaces to fill the column before adding the doc strings
+        # in gray color
+        for function in functions_list:
+            print_string_list.append("[color=3AD126]{}[/color]{}".format(function[0], " " * (column_width - len(function[0]))))
+            print_string_list.append("[color=808080]")
+            print_string_list.append(function[1])
+            print_string_list.append("[/color]\n\n")
+
         console.print_info(''.join(print_string_list))
 
     else:
         functions_dict = {}
+        doc_string = ""
         for function in functions_list:
             functions_dict[function[0]] = function[1]
         if command in functions_dict.keys():
-            print_string_list = ["\n\n", command, "\n\n"]
-            print_string_list.append(str(inspect.getdoc(functions_dict[command])))
-            console.print_info(''.join(print_string_list))
+            print_string_list = ["\n\n[color=3AD126]", command, "[/color]\n"]
+            doc_string = str(inspect.getdoc(functions_dict[command]))
         elif inspect.isfunction(command):
-            print_string_list = ["\n\n", str(command.__name__), "\n\n"]
-            print_string_list.append(str(inspect.getdoc(command)))
-            console.print_info(''.join(print_string_list))
+            print_string_list = ["\n\n[color=3AD126]", str(command.__name__), "[/color]\n"]
+            doc_string = str(inspect.getdoc(command))
         else:
             raise NotImplementedError("the command '{}' does not exist".format(command))
+
+        # adding the explanatory string to the list of string to assemble
+        print_string_list.append("[color=808080]{}[/color]\n".format(doc_string[:doc_string.find("\n:param")]))
+
+        # splitting it into lines
+        doc_string_lines = doc_string.split("\n")
+        first_parameter = True
+        for line in doc_string_lines:
+            if line[:7] == ":param ":
+                if not first_parameter:
+                    parameter_name = line[7:line[1:].find(":")+1]
+                    print_string_list.append("-- {}\n".format(parameter_name))
+                else:
+                    first_parameter = False
+            if line[:8] == ":return:":
+                print_string_list.append("returns: [color=808080]{}[/color]".format(line.replace(":return:", "")))
+
+        console.print_info(''.join(print_string_list))
 
 
 class SimplePisoleConsole(threading.Thread):
@@ -136,6 +182,12 @@ class SimplePisoleConsole(threading.Thread):
                 starting_length_buffer = length_buffer
             elif length_buffer > starting_length_buffer:
                 return self.console_widget.pop_latest_input()
+
+    def get_width(self):
+        return self.console_widget.output_window.width
+
+    def get_font_size(self):
+        return self.console_widget.get_font_size()
 
     def _print(self, string):
         self.console_widget.print(string)
