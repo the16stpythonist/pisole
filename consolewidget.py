@@ -559,6 +559,11 @@ class SimpleConsoleInputLine(SimpleConsoleComponent):
         # Preventing multiple command issues to jam the cache list
         if self.text not in self.previous_command_list[1:]:
             self.previous_command_list.insert(1, self.text)
+        else:
+            # This is implements behaviour, that if a command was entered for the second, third... etc time, it will
+            # move to the top of the list instead of staying in its original position
+            self.previous_command_list.remove(self.text)
+            self.previous_command_list.insert(1, self.text)
 
         # resetting all temporary values of the input line
         self.previous_command_selection_index = 0
